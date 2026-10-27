@@ -1,0 +1,26 @@
+---
+import PostLayout from '../../layouts/PostLayout.astro'
+import raw from '../../content/why-diffusion-models.html?raw'
+import meta from '../../content/why-diffusion-models.json'
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const body = raw.replaceAll('{{BASE}}', base)
+
+const authors = [{ name: 'Minkyu Kang', href: 'https://mk040412.github.io/' }]
+const links = [{ label: 'From Fundamental Theory', href: `${base}/` }]
+---
+
+<PostLayout
+	title={meta.title}
+	subtitle={meta.subtitle}
+	description='Why did diffusion models appear? Every earlier model family traded tractability for flexibility; diffusion gets both by writing a path of small Gaussian steps. Part 1 of 6, figures first.'
+	authors={authors}
+	links={links}
+	faviconHref={`${base}/favicon.png`}
+>
+	<Fragment set:html={body} />
+	<p class='series-note'>
+		Part of <a href={`${base}/`}>Fundamental Theory</a>, maintained by
+		<a href='https://mk040412.github.io/'>Kang Minkyu</a>.
+	</p>
+</PostLayout>
