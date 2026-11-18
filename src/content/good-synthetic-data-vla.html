@@ -1,0 +1,87 @@
+<!-- written from the deck "What is good synthetic data for a VLA?" (vla_good_data_en_poc.pptx, 2026-11-02): one slide = one question, its answer, one figure -->
+<div class="tldr-box"><p><strong>TL;DR.</strong> Which synthetic demos make a vision-language-action model (VLA) act well after training?</p>
+<ul><li><strong>Where.</strong> The loss appears only where the outcome is decided: the decision and the grasp.</li><li><strong>Information.</strong> The decision follows what the model's representation carries. Putting the answer into the conditioning <span class="math inline">\(c\)</span> takes it from 59% to 100%.</li><li><strong>Coverage.</strong> An unresolved decision drives the robot into states the data never covered (58% vs 14% of the time). One round of data from those states did not beat the same amount of fresh demos.</li></ul>
+</div>
+<hr />
+<h1 id="what-are-we-asking">1. What are we asking?</h1>
+<p class="lead"><strong>Which synthetic data raises inference performance after training?</strong></p>
+<p>Synthetic data <span class="math inline">\(D\)</span> trains the policy <span class="math inline">\(\pi_D\)</span>, and we measure its performance <span class="math inline">\(J(\pi_D)\)</span>. First we define good data with equations. Then we test the definition on a two-basket task.</p>
+<h1 id="what-should-a-deep-learning-reader-know-first">2. What should a deep learning reader know first?</h1>
+<p class="lead"><strong>A VLA is an image and text encoder plus a generative action head.</strong></p>
+<ul><li><strong>Encoder (System 2).</strong> A frozen vision-language model reads the camera image and the instruction and outputs tokens <span class="math inline">\(c\)</span>.</li><li><strong>Action head (System 1).</strong> A flow-matching model (like a diffusion model) turns noise <span class="math inline">\(\varepsilon\)</span> into the next 1.2 s of robot motion given <span class="math inline">\(c\)</span>.</li><li><strong>Training.</strong> Plain imitation of demos from a scripted expert (the oracle) that sees the true simulator state.</li><li><strong>Two kinds of mistakes.</strong> A wrong decision (which basket) and an imprecise motion (where the hand lands).</li><li><strong>OOD.</strong> A state the trained policy reaches that never appears in the training data.</li></ul>
+<h1 id="how-does-a-vla-pick-an-action">3. How does a VLA pick an action?</h1>
+<p class="lead"><strong>The VLM only guides through <span class="math inline">\(c\)</span>. The actual choice happens in the noise <span class="math inline">\(\varepsilon\)</span>.</strong></p>
+<p>$$\pi_\theta(a \mid h_t, \ell), \qquad c_t = g(h_t, \ell), \qquad a = \Phi(\varepsilon;\ o_t, c_t)$$</p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig1_concept.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig1_concept.png" alt="Figure 1" width="2400" height="442" /></a><span class="caption"><span class="fig-num">Figure 1.</span> <strong>The noise picks the mode.</strong> (a) Noise <span class="math inline">\(p\)</span> and a two-mode action distribution <span class="math inline">\(q\)</span>. (b) The path <span class="math inline">\(p_t\)</span>. (c) Learned vs target velocity. (d) Different noises end in different modes.</span></div>
+<p><span class="math inline">\(c\)</span> depends only on <span class="math inline">\(h\)</span> and <span class="math inline">\(\ell\)</span>, so it adds no information. System 2 can only extract what is already there.</p>
+<h1 id="does-the-trained-vla-pick-the-mode-with-the-noise">4. Does the trained VLA pick the mode with the noise?</h1>
+<p class="lead"><strong>Yes. Without the answer in <span class="math inline">\(c\)</span>, <span class="math inline">\(\varepsilon\)</span> picks one of two answers.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig1_real.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig1_real.png" alt="Figure 2" width="2400" height="442" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 2.</span> <strong>Figure 1, drawn from the trained VLA.</strong> One observation without answer information, 4000 noises pushed through the learned velocity field. The noises split between the left basket <span class="math inline">\(X_1^{(1)}\)</span> and the right basket <span class="math inline">\(X_1^{(2)}\)</span>.</span></div>
+<h1 id="when-does-the-loss-occur">5. When does the loss occur?</h1>
+<p class="lead"><strong>Only at decision points and precision points.</strong></p>
+<p>$$J(\pi^*) - J(\pi_D) = \sum_t \mathbb{E}_{h_t \sim d_t^{\pi_D}}\big[r_D(h_t)\big], \qquad r_D(h) = V^{\pi^*}(h) - \mathbb{E}_{a \sim \pi_D(\cdot \mid h)}\big[Q^{\pi^*}(h, a)\big]$$</p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig4_concept.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig4_concept.png" alt="Figure 3" width="2400" height="1002" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 3.</span> <strong>Loss is a spike, not a constant.</strong> <span class="math inline">\(r_D(h)\)</span> is the mass of <span class="math inline">\(\pi_D\)</span> outside the optimal set <span class="math inline">\(A^*(h)\)</span>. At every other step the loss is zero.</span></div>
+<h1 id="when-does-the-loss-occur-in-real-rollouts">6. When does the loss occur in real rollouts?</h1>
+<p class="lead"><strong>At the decision in the first seconds, and at the grasp.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig4_real.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig4_real.png" alt="Figure 4" width="2400" height="1351" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 4.</span> <strong>Figure 3, measured.</strong> Top rows: where the robot is at each time (first went to the answer basket / to the other one). Bottom: when each failure was decided.</span></div>
+<h1 id="where-must-the-data-be-accurate">7. Where must the data be accurate?</h1>
+<p class="lead"><strong>Only where the outcome is decided.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig2_concept.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig2_concept.png" alt="Figure 5" width="2400" height="680" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 5.</span> <strong>Three cases of loss.</strong> Left: inside the optimal set, no loss. Middle: mass on another mode, a decision error. Right: wider than the set, a precision error.</span></div>
+<h1 id="do-the-three-cases-appear-in-real-rollouts">8. Do the three cases appear in real rollouts?</h1>
+<p class="lead"><strong>Yes. A free choice is free. A wrong basket or an off-set palm is not.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig2_real.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig2_real.png" alt="Figure 6" width="2400" height="755" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 6.</span> <strong>Figure 5, measured.</strong> Left: successful grasps. Middle: where the robot first arrives. Right: palm offset at grasp onset (black = success, red = failure).</span></div>
+<h1 id="does-the-observation-fix-the-situation">9. Does the observation fix the situation?</h1>
+<p class="lead"><strong>The answer must be fixed by information the learner can see.</strong></p>
+<p>$$H(Z_{\text{situation}} \mid h, \ell) = 0$$</p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig3_concept.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig3_concept.png" alt="Figure 7" width="2400" height="570" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 7.</span> <strong>Information condition.</strong> <span class="math inline">\(o\)</span> does not fix <span class="math inline">\(s\)</span>: the two modes mix (third panel). <span class="math inline">\(o\)</span> fixes <span class="math inline">\(s\)</span>: one mode (fourth panel).</span></div>
+<h1 id="does-the-representation-fix-the-situation-in-the-trained-vlas">10. Does the representation fix the situation in the trained VLAs?</h1>
+<p class="lead"><strong>Only when it carries the answer. Otherwise <span class="math inline">\(q(a \mid o)\)</span> is the mixture.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig3_real.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig3_real.png" alt="Figure 8" width="2400" height="409" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 8.</span> <strong>Figure 7, measured.</strong> Orange = answer on the left. Gray = answer on the right. Overlap = mixture. Panels: oracle data · same color · color named in the instruction · only the answer red · answer side <span class="math inline">\(z\)</span> in <span class="math inline">\(c\)</span>.</span></div>
+<h1 id="does-the-data-cover-where-the-policy-goes">11. Does the data cover where the policy goes?</h1>
+<p class="lead"><strong>We cannot know it at generation time, so we iterate.</strong></p>
+<p>$$\operatorname{supp}\, d^{\mathcal{A}(D)} \subseteq \operatorname{supp}\, \mu_D$$</p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/fig5_concept.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/fig5_concept.png" alt="Figure 9" width="2400" height="682" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 9.</span> <strong>Coverage.</strong> Red = states the trained policy visits but the data lacks. It shrinks with each round <span class="math inline">\(k\)</span>.</span></div>
+<hr />
+<h1 id="how-do-we-test-it">12. How do we test it?</h1>
+<p class="lead"><strong>Lift the right one of two baskets. We only move the answer information.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/test_start_frames.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/test_start_frames.png" alt="Figure 10" width="1968" height="480" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 10.</span> <strong>Head camera at the start.</strong> Same color · only the answer is red · blue and red.</span></div>
+<div class="results-table"><table>
+<thead><tr><th>Condition</th><th>Answer info in</th><th>Prediction</th></tr></thead>
+<tbody>
+<tr><td>same color</td><td>none</td><td>about 50%</td></tr>
+<tr><td>only the answer is red</td><td>image</td><td>about 100%</td></tr>
+<tr><td>instruction names the color</td><td>image + instruction</td><td>about 100% only if the VLM extracts it</td></tr>
+<tr><td>third model + generic instruction</td><td>none</td><td>about 50%</td></tr>
+</tbody>
+</table></div>
+<h1 id="does-the-decision-follow-the-information">13. Does the decision follow the information?</h1>
+<p class="lead"><strong>Yes. The decision follows the information in the representation.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/result_decision.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/result_decision.png" alt="Figure 11" width="2400" height="826" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 11.</span> <strong>Decision vs probe.</strong> Information in the instruction stays at chance if it is not in the representation (51.5% vs 96.5%).</span></div>
+<h1 id="does-an-unresolved-decision-hurt-execution">14. Does an unresolved decision hurt execution?</h1>
+<p class="lead"><strong>Yes. Resolved decision 40% vs unresolved decision about 22%.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/result_lift.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/result_lift.png" alt="Figure 12" width="2400" height="568" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 12.</span> <strong>Lift rate per condition.</strong> Filled = either basket, open = the answer basket.</span></div>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/result_frames.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/result_frames.png" alt="Figure 13" width="2584" height="480" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 13.</span> <strong>Lifts the answer basket (answer red) · decision unresolved (same color).</strong></span></div>
+<h1 id="why-does-an-unresolved-decision-hurt-execution">15. Why does an unresolved decision hurt execution?</h1>
+<p class="lead"><strong>It leaves the data. 58% vs 14% of the time outside the training data.</strong></p>
+<div class="figure"><a href="{{BASE}}/good-synthetic-data-vla/figures/result_ood_map.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/result_ood_map.png" alt="Figure 14" width="2400" height="1251" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 14.</span> <strong>No data there, nothing to imitate.</strong> Answer basket in the robot frame. Orange = training data, gray = visited states, red = visited but outside the data. Lift 38% when resolved vs 16% when unresolved.</span></div>
+<h1 id="does-putting-the-answer-into-c-fix-the-decision">16. Does putting the answer into <span class="math inline">\(c\)</span> fix the decision?</h1>
+<p class="lead"><strong>Yes. 59% → 100%, and a flipped <span class="math inline">\(z\)</span> sends it to the other basket.</strong></p>
+<div class="figure fig-sm"><a href="{{BASE}}/good-synthetic-data-vla/figures/result_system2.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/result_system2.png" alt="Figure 15" width="2079" height="1235" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 15.</span> <strong>System 2 extraction.</strong> Same data and steps. Only <span class="math inline">\(z\)</span> is added to <span class="math inline">\(c\)</span>. The action head follows <span class="math inline">\(c\)</span>, so System 2 only has to extract the answer.</span></div>
+<h1 id="does-data-from-where-the-policy-goes-beat-more-data">17. Does data from where the policy goes beat more data?</h1>
+<p class="lead"><strong>Not in this test. Fresh oracle data helped more.</strong></p>
+<div class="figure fig-sm"><a href="{{BASE}}/good-synthetic-data-vla/figures/result_coverage.png"><img src="{{BASE}}/good-synthetic-data-vla/figures/result_coverage.png" alt="Figure 16" width="2079" height="1234" loading="lazy" /></a><span class="caption"><span class="fig-num">Figure 16.</span> <strong>One round of <span class="math inline">\(k\)</span>.</strong> Lift 38% → 52% with fresh data (<span class="math inline">\(p = 0.005\)</span>) and 46% with data from the states the policy reached (<span class="math inline">\(p = 0.19\)</span>). Here grasp precision is the bottleneck.</span></div>
+<hr />
+<h1 id="what-is-good-synthetic-data">18. What is good synthetic data?</h1>
+<p class="lead"><strong>Data that precisely covers the answer fixed by information the learner can see, at the states the trained policy will visit, and above all where the outcome is decided.</strong></p>
+<div class="results-table"><table>
+<thead><tr><th>Piece</th><th>Condition</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>precisely covers</td><td>precision</td><td>△ not yet</td></tr>
+<tr><td>fixed by information the learner can see</td><td>information condition</td><td>✓ confirmed</td></tr>
+<tr><td>states the trained policy will visit</td><td>coverage and self-correction</td><td>△ not yet</td></tr>
+<tr><td>where the outcome is decided</td><td>decision points</td><td>✓ confirmed</td></tr>
+</tbody>
+</table></div>
+<h1 id="what-remains">19. What remains?</h1>
+<p class="lead"><strong>Repeat seeds and test coverage where the policy really leaves the data.</strong></p>
+<ul><li><strong>Seeds.</strong> Three training seeds per arm to tighten every interval.</li><li><strong>Coverage on the unresolved task.</strong> Takeover rounds <span class="math inline">\(k = 1, 2\)</span> where the policy is outside the data 58% of the time.</li><li><strong>Precision data.</strong> More demos near the grasp to raise the 25 to 52% execution ceiling.</li><li><strong>Self-correction.</strong> Compare the policy's retry rate with the oracle's own retry rate.</li><li><strong>Real System 2.</strong> Let the VLM produce <span class="math inline">\(z\)</span> instead of giving it.</li></ul>

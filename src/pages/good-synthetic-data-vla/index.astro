@@ -1,0 +1,26 @@
+---
+import PostLayout from '../../layouts/PostLayout.astro'
+import raw from '../../content/good-synthetic-data-vla.html?raw'
+import header from '../../content/good-synthetic-data-vla.json'
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const body = raw.replaceAll('{{BASE}}', base)
+
+const authors = [{ name: 'Minkyu Kang', href: 'https://mk040412.github.io/' }]
+const links = [{ label: 'From Fundamental Theory', href: `${base}/` }]
+---
+
+<PostLayout
+	title={header.title}
+	subtitle={header.subtitle}
+	description='Which synthetic demos make a VLA act well after training? The loss appears only where the outcome is decided, the decision follows what the representation carries, and an unresolved decision drives the robot out of the data. Questions answered with figures.'
+	authors={authors}
+	links={links}
+	faviconHref={`${base}/favicon.png`}
+>
+	<Fragment set:html={body} />
+	<p class='series-note'>
+		Part of <a href={`${base}/`}>Fundamental Theory</a>, maintained by
+		<a href='https://mk040412.github.io/'>Kang Minkyu</a>.
+	</p>
+</PostLayout>

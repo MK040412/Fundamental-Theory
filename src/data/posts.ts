@@ -11,6 +11,15 @@ export type Post = {
 // link and image are relative to the site's base path
 export const posts: Post[] = [
 	{
+		title: 'What Is Good Synthetic Data for a VLA?',
+		date: '2026-11-08',
+		tagline:
+			'Which synthetic demos make a vision-language-action model act well after training? The loss appears only where the outcome is decided, the decision follows what the representation carries, and an unresolved decision drives the robot out of the data.',
+		link: '/good-synthetic-data-vla/',
+		image: '/thumbs/good-synthetic-data-vla.png',
+		tags: ['VLA', 'Synthetic Data', 'Flow Matching'],
+	},
+	{
 		title: 'Why Diffusion Models?',
 		date: '2026-10-27',
 		tagline:
